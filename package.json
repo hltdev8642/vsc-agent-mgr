@@ -1,0 +1,307 @@
+{
+  "name": "vsc-agent-mgr",
+  "displayName": "AI Agent Manager",
+  "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
+  "version": "0.1.0",
+  "publisher": "vsc-agent-mgr",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "copilot",
+    "prompts",
+    "chatmode",
+    "instructions"
+  ],
+  "icon": "resources/icon.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentMgr.addRepository",
+        "title": "Add Repository",
+        "icon": "$(add)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.removeRepository",
+        "title": "Remove Repository",
+        "icon": "$(trash)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.syncRepository",
+        "title": "Sync Repository",
+        "icon": "$(sync)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.syncAll",
+        "title": "Sync All Repositories",
+        "icon": "$(sync)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.refresh",
+        "title": "Refresh View",
+        "icon": "$(refresh)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.installFile",
+        "title": "Install File",
+        "icon": "$(cloud-download)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.uninstallFile",
+        "title": "Uninstall File",
+        "icon": "$(trash)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.updateFile",
+        "title": "Update to Latest",
+        "icon": "$(arrow-up)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.viewDiff",
+        "title": "View Changes",
+        "icon": "$(diff)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.resolveConflict",
+        "title": "Resolve Conflict",
+        "icon": "$(git-merge)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.installAll",
+        "title": "Install All in Category",
+        "icon": "$(cloud-download)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.openInBrowser",
+        "title": "Open Repository in Browser",
+        "icon": "$(link-external)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.setAuthToken",
+        "title": "Set Authentication Token",
+        "icon": "$(key)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.openPromptsFolder",
+        "title": "Open Prompts Folder",
+        "icon": "$(folder-opened)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.openFile",
+        "title": "Open Installed File",
+        "icon": "$(go-to-file)",
+        "category": "Agent Manager"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentManager",
+          "title": "AI Agent Manager",
+          "icon": "resources/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentManager": [
+        {
+          "id": "agentManagerView",
+          "name": "Repositories",
+          "icon": "resources/activity-icon.svg",
+          "contextualTitle": "AI Agent Manager"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "agentMgr.addRepository",
+          "when": "view == agentManagerView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentMgr.syncAll",
+          "when": "view == agentManagerView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentMgr.refresh",
+          "when": "view == agentManagerView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentMgr.openPromptsFolder",
+          "when": "view == agentManagerView",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentMgr.syncRepository",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentMgr.removeRepository",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "inline@2"
+        },
+        {
+          "command": "agentMgr.openInBrowser",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "1_repo@1"
+        },
+        {
+          "command": "agentMgr.setAuthToken",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "1_repo@2"
+        },
+        {
+          "command": "agentMgr.installAll",
+          "when": "view == agentManagerView && viewItem == category",
+          "group": "inline"
+        },
+        {
+          "command": "agentMgr.installFile",
+          "when": "view == agentManagerView && viewItem == file_available",
+          "group": "inline"
+        },
+        {
+          "command": "agentMgr.updateFile",
+          "when": "view == agentManagerView && viewItem == file_outdated",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentMgr.viewDiff",
+          "when": "view == agentManagerView && (viewItem == file_outdated || viewItem == file_conflicted)",
+          "group": "inline@2"
+        },
+        {
+          "command": "agentMgr.resolveConflict",
+          "when": "view == agentManagerView && viewItem == file_conflicted",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentMgr.uninstallFile",
+          "when": "view == agentManagerView && (viewItem == file_installed || viewItem == file_outdated || viewItem == file_conflicted)",
+          "group": "2_file"
+        },
+        {
+          "command": "agentMgr.openFile",
+          "when": "view == agentManagerView && (viewItem == file_installed || viewItem == file_outdated || viewItem == file_conflicted)",
+          "group": "3_open"
+        }
+      ],
+      "commandPalette": [
+        { "command": "agentMgr.syncRepository", "when": "false" },
+        { "command": "agentMgr.removeRepository", "when": "false" },
+        { "command": "agentMgr.installFile", "when": "false" },
+        { "command": "agentMgr.uninstallFile", "when": "false" },
+        { "command": "agentMgr.updateFile", "when": "false" },
+        { "command": "agentMgr.viewDiff", "when": "false" },
+        { "command": "agentMgr.resolveConflict", "when": "false" },
+        { "command": "agentMgr.installAll", "when": "false" },
+        { "command": "agentMgr.openInBrowser", "when": "false" },
+        { "command": "agentMgr.setAuthToken", "when": "false" },
+        { "command": "agentMgr.openFile", "when": "false" }
+      ]
+    },
+    "configuration": {
+      "title": "AI Agent Manager",
+      "properties": {
+        "agentMgr.promptsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override the default prompts directory path. Leave empty to use the platform default (e.g. %APPDATA%\\Code - Insiders\\User\\prompts on Windows).",
+          "scope": "application"
+        },
+        "agentMgr.autoSyncOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync all repositories when VS Code starts.",
+          "scope": "application"
+        },
+        "agentMgr.autoSyncInterval": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "Interval in minutes for automatic background sync (0 to disable).",
+          "scope": "application"
+        },
+        "agentMgr.defaultRepositories": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string" },
+          "description": "List of repository URLs to add automatically on first launch.",
+          "scope": "application"
+        },
+        "agentMgr.conflictResolution": {
+          "type": "string",
+          "default": "ask",
+          "enum": ["ask", "keepLocal", "useRemote"],
+          "enumDescriptions": [
+            "Prompt for each conflict individually",
+            "Always keep the locally modified version",
+            "Always overwrite with the latest remote version"
+          ],
+          "description": "Strategy to use when both the local installed file and the remote file have changed.",
+          "scope": "application"
+        },
+        "agentMgr.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show information notifications for installs, updates, and sync results.",
+          "scope": "application"
+        },
+        "agentMgr.scanSubdirectories": {
+          "type": "boolean",
+          "default": true,
+          "description": "Recursively scan subdirectories in repositories for .md files.",
+          "scope": "application"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0"
+  },
+  "dependencies": {
+    "simple-git": "^3.22.0"
+  }
+}
