@@ -50,11 +50,8 @@ export class FileScanner {
     }
 
     for (const entry of entries) {
-      if (entry.name.startsWith('.') && entry.name !== entry.name.toLowerCase()) {
-        continue;
-      }
       if (entry.name.startsWith('.')) {
-        continue; // skip hidden entries
+        continue; // skip hidden files and directories (e.g. .git, .github)
       }
 
       const fullPath = path.join(dir, entry.name);

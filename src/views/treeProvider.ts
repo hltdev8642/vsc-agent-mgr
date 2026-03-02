@@ -137,7 +137,10 @@ export class AgentManagerTreeProvider
 
     try {
       files = await this.fileScanner.scanRepository(repoId, localPath);
-    } catch {
+    } catch (err) {
+      // Local clone doesn't exist yet or is unreadable — return empty list.
+      // This is expected right after addRepository before the first sync.
+      console.error(`[AgentMgr] Failed to scan ${localPath}:`, err);
       files = [];
     }
 

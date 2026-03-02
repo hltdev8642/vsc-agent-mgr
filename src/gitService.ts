@@ -27,6 +27,13 @@ export class GitService {
    *
    * Falls back to cloning without a specific branch if the requested branch
    * does not exist on the remote.
+   *
+   * On Windows, some repos contain files whose names include characters that
+   * are illegal on NTFS (e.g. `:`).  Git reports "clone succeeded, but
+   * checkout failed" and exits non-zero, but the `.git` directory and all
+   * object data are intact.  We detect this situation by checking whether a
+   * valid git repo exists at `localPath` after the error — if so we treat the
+   * clone as a success (the affected files simply won't appear on disk).
    */
   async clone(
     url: string,
@@ -44,21 +51,45 @@ export class GitService {
         branch,
         '--single-branch',
       ]);
-    } catch {
-      // Branch may not exist — retry without specifying a branch so we get
-      // whatever the remote default is.
+    } catch (firstErr) {
+      // If the repo was partially created (clone succeeded, checkout failed),
+      // there will be a valid git directory at localPath already.
+      if (await this.isRepository(localPath)) {
+        // Checkout failed due to OS-level path restrictions (e.g. `:` in
+        // filenames on Windows).  The git objects are intact so we can still
+        // scan and install whatever files *did* check out successfully.
+        return;
+      }
+
+      // The clone itself failed (e.g. branch not found, network error).
+      // Clean up the partial directory and retry without a specific branch.
       try {
         await fs.rm(localPath, { recursive: true, force: true });
       } catch {
         // ignore cleanup errors
       }
-      await git.clone(authUrl, localPath);
+
+      try {
+        await git.clone(authUrl, localPath);
+      } catch (secondErr) {
+        // Same check: if the second attempt also failed at checkout (not at
+        // clone), the repo is still usable.
+        if (await this.isRepository(localPath)) {
+          return;
+        }
+        throw secondErr;
+      }
     }
   }
 
   /**
    * Pull the latest commits for `branch` in the repository at `localPath`.
    * Returns `true` when at least one commit was fetched (i.e. HEAD changed).
+   *
+   * Like `clone`, this tolerates checkout failures caused by OS-level path
+   * restrictions (e.g. filenames containing `:` on Windows).  In that case
+   * `true` is returned because remote changes were fetched even though some
+   * files could not be written to disk.
    */
   async pull(
     localPath: string,
@@ -74,9 +105,20 @@ export class GitService {
     }
 
     const before = await this.getHeadHash(git);
-    await git.pull('origin', branch, { '--ff-only': null });
-    const after = await this.getHeadHash(git);
 
+    try {
+      await git.pull('origin', branch, { '--ff-only': null });
+    } catch (err) {
+      // If HEAD moved, the pull fetched new commits even though the working-
+      // tree checkout failed for some files (e.g. invalid Windows paths).
+      const after = await this.getHeadHash(git).catch(() => before);
+      if (after !== before) {
+        return true;
+      }
+      throw err;
+    }
+
+    const after = await this.getHeadHash(git);
     return before !== after;
   }
 

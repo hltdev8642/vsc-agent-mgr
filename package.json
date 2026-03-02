@@ -19,7 +19,6 @@
     "chatmode",
     "instructions"
   ],
-  "icon": "resources/icon.png",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -290,12 +289,15 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
+    "build-vsix": "npm run compile && npx @vscode/vsce package --allow-missing-repository --out dist/",
+    "package": "npx @vscode/vsce package --allow-missing-repository --out dist/",
+    "watch-vsix": "node scripts/watch-build.mjs",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
     "typescript": "^5.3.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",

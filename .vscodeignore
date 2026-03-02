@@ -1,10 +1,15 @@
 .vscode/**
 .vscode-test/**
-out/**
 node_modules/**
 src/**
+scripts/**
+dist/**
 .gitignore
 .eslintrc.json
 **/*.map
 **/*.ts
+# simple-git and its transitive runtime dependencies must be included
 !node_modules/simple-git/**
+!node_modules/@kwsites/**
+!node_modules/debug/**
+!node_modules/ms/**
