@@ -121,25 +121,46 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
-  // ── First-launch default repositories ────────────────────────────────────
+  // ── Default repositories (settings-driven) ──────────────────────────────
 
-  const isFirstLaunch =
-    context.globalState.get<boolean>('agentMgr.firstLaunchDone') !== true;
-  if (isFirstLaunch) {
-    context.globalState.update('agentMgr.firstLaunchDone', true);
+  /** Add any URLs from `defaultRepositories` that aren't already registered. */
+  async function syncDefaultRepositories(): Promise<void> {
     const defaults = vscode.workspace
       .getConfiguration('agentMgr')
       .get<string[]>('defaultRepositories', []);
+    const existingUrls = new Set(
+      repoManager.getAll().map((r) => normaliseUrl(r.url))
+    );
     for (const url of defaults) {
+      if (!url.trim()) {
+        continue;
+      }
+      if (existingUrls.has(normaliseUrl(url))) {
+        continue; // already registered
+      }
       repoManager
-        .add(url)
-        .catch((err) =>
+        .add(url.trim())
+        .then(() => treeProvider.refresh())
+        .catch((err: unknown) =>
           vscode.window.showWarningMessage(
-            `Could not add default repository "${url}": ${err.message}`
+            `Could not add default repository "${url}": ${
+              err instanceof Error ? err.message : String(err)
+            }`
           )
         );
     }
   }
+
+  // Run once on activation, then whenever the setting changes.
+  syncDefaultRepositories();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('agentMgr.defaultRepositories')) {
+        syncDefaultRepositories();
+      }
+    })
+  );
 
   // ── Auto-sync on startup ──────────────────────────────────────────────────
 
@@ -631,13 +652,19 @@ async function cmdOpenPromptsFolder(): Promise<void> {
 
 /** Open the installed version of a file in the editor. */
 async function cmdOpenFile(
-  file: AgentFile,
+  file: AgentFile | undefined,
   installManager: InstallationManager
 ): Promise<void> {
+  if (!file) {
+    vscode.window.showInformationMessage('No file selected.');
+    return;
+  }
   const installedPath = installManager.getInstalledPath(file.id);
   if (!installedPath) {
+    const label =
+      file.displayName || file.name || file.relativePath || file.id || '<unknown>';
     vscode.window.showInformationMessage(
-      `"${file.displayName}" is not installed.`
+      `"${label}" is not installed.`
     );
     return;
   }
@@ -724,4 +751,9 @@ function toMessage(err: unknown): string {
     return err.message;
   }
   return String(err);
+}
+
+/** Normalise a repo URL for duplicate-detection (strip .git suffix, trailing slash, lowercase). */
+function normaliseUrl(url: string): string {
+  return url.trim().replace(/\.git$/, '').replace(/\/$/, '').toLowerCase();
 }

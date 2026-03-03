@@ -1,15 +1,33 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import simpleGit, { SimpleGit } from 'simple-git';
 
+const execFileAsync = promisify(execFile);
+
 /**
- * Thin wrapper around simple-git providing the operations needed by this
- * extension. All methods throw descriptive errors on failure so callers can
- * surface them to the user.
+ * Returns a sanitised environment for git sub-processes.
+ * Disables interactive prompts and strips variables that some system git
+ * configurations use to inject the --upload-pack (-u) flag, which would
+ * otherwise trigger git's allowUnsafePack security check.
+ */
+function gitEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  env['GIT_TERMINAL_PROMPT'] = '0';
+  delete env['GIT_UPLOAD_PACK'];
+  return env;
+}
+
+/**
+ * Thin wrapper around git providing the operations needed by this extension.
+ * All methods throw descriptive errors on failure so callers can surface them
+ * to the user.
  */
 export class GitService {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  /** simple-git instance for lightweight read-only operations. */
   private git(workingDir?: string): SimpleGit {
     return simpleGit({
       baseDir: workingDir,
@@ -17,6 +35,20 @@ export class GitService {
       maxConcurrentProcesses: 4,
       trimmed: false,
     });
+  }
+
+  /**
+   * Invoke git directly via execFile, bypassing simple-git's argument
+   * transformation entirely. Uses gitEnv() to prevent system-level git
+   * security policies from injecting unexpected flags.
+   */
+  private async runGit(args: string[], cwd?: string): Promise<string> {
+    const { stdout } = await execFileAsync('git', args, {
+      cwd,
+      env: gitEnv(),
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return stdout;
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -44,13 +76,10 @@ export class GitService {
     const authUrl = token ? injectToken(url, token) : url;
     await fs.mkdir(path.dirname(localPath), { recursive: true });
 
-    const git = this.git();
     try {
-      await git.clone(authUrl, localPath, [
-        '--branch',
-        branch,
-        '--single-branch',
-      ]);
+      await this.runGit(
+        ['clone', '--branch', branch, '--single-branch', authUrl, localPath]
+      );
     } catch (firstErr) {
       // If the repo was partially created (clone succeeded, checkout failed),
       // there will be a valid git directory at localPath already.
@@ -70,7 +99,7 @@ export class GitService {
       }
 
       try {
-        await git.clone(authUrl, localPath);
+        await this.runGit(['clone', authUrl, localPath]);
       } catch (secondErr) {
         // Same check: if the second attempt also failed at checkout (not at
         // clone), the repo is still usable.
@@ -97,28 +126,32 @@ export class GitService {
     branch: string,
     token?: string
   ): Promise<boolean> {
-    const git = this.git(localPath);
-
     if (token) {
       const authUrl = injectToken(url, token);
-      await git.remote(['set-url', 'origin', authUrl]);
+      await this.runGit(['remote', 'set-url', 'origin', authUrl], localPath);
     }
 
-    const before = await this.getHeadHash(git);
+    const before = (
+      await this.runGit(['rev-parse', 'HEAD'], localPath)
+    ).trim();
 
     try {
-      await git.pull('origin', branch, { '--ff-only': null });
+      await this.runGit(['pull', '--ff-only', 'origin', branch], localPath);
     } catch (err) {
       // If HEAD moved, the pull fetched new commits even though the working-
       // tree checkout failed for some files (e.g. invalid Windows paths).
-      const after = await this.getHeadHash(git).catch(() => before);
+      const after = await this.runGit(['rev-parse', 'HEAD'], localPath)
+        .then((s) => s.trim())
+        .catch(() => before);
       if (after !== before) {
         return true;
       }
       throw err;
     }
 
-    const after = await this.getHeadHash(git);
+    const after = (
+      await this.runGit(['rev-parse', 'HEAD'], localPath)
+    ).trim();
     return before !== after;
   }
 
