@@ -1,5 +1,26 @@
 # AI Agent Manager
 
+## Changelog
+
+### 0.1.3
+- Fixed filter button so it opens the search bar and focuses the input, even before the view is created.
+- Ensured the filter subview always appears when the repositories view is active.
+- **(0.1.4)** Added explicit "Filter" label and visibility to the search bar view and instrumentation for debugging when the toolbar button is pressed; should finally resolve cases where clicking the filter icon seemed to do nothing. Marked the view's contribution type as `webview` (previously treated as a tree without a provider) and added `onView:agentManagerFilter` activation event, eliminating the "no data provider" error. Removed an erroneous call to `workbench.action.openView` that opened the global view picker (a general search bar) – the filter input now lives strictly inside the Agent Manager panel.
+
+### 0.1.2
+- Added persistent search bar above repository list; typing filters repos in real time.
+
+### 0.1.1
+- Fixed a sync error when repositories had diverging or force-pushed histories; the extension now auto-resets the local clone to the remote state instead of failing.
+
+### 0.1.0
+- Added repository filter/search bar at the top of the panel for quickly narrowing visible repos by name or URL.
+- Implemented file preview command to open raw markdown inside VS Code without installing.
+- Support custom names/aliases during installation with conflict prevention and rename dialog.
+- Highlight outdated files in the tree and show a one-click "Update to Latest" action.
+- Added update-check logic and notifications for newly available remote versions.
+
+
 A VS Code extension for managing AI agent configurations, chatmodes, and instruction files across multiple Git repositories. Discover, install, and keep your `.md` prompt files up to date from a central sidebar panel.
 
 ---
@@ -88,6 +109,8 @@ vsce package
 
 Right-click any file with the **↓** icon and choose **Install File**, or click the inline download button.
 
+> **Filtering** is now case‑insensitive and supports fuzzy matching – type any substring or characters in order and the repository list will narrow accordingly.
+
 ### Update a File
 
 When the **↑ update available** badge appears, right-click and choose **Update to Latest**.
@@ -105,6 +128,7 @@ All major operations are accessible via **Ctrl+Shift+P** (Cmd+Shift+P on macOS):
 | `Agent Manager: Add Repository` | Register a new repository |
 | `Agent Manager: Sync All Repositories` | Pull all repos |
 | `Agent Manager: Refresh View` | Reload the sidebar tree |
+| `Agent Manager: Filter Repositories` | Focus the search bar at the top of the panel |
 | `Agent Manager: Open Prompts Folder` | Reveal the prompts directory in Explorer |
 
 ---

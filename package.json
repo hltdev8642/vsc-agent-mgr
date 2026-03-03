@@ -2,7 +2,7 @@
   "name": "vsc-agent-mgr",
   "displayName": "AI Agent Manager",
   "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "publisher": "vsc-agent-mgr",
   "license": "MIT",
   "engines": {
@@ -20,7 +20,10 @@
     "instructions"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:agentManagerView",
+    "onView:agentManagerFilter",
+    "onCommand:agentMgr.filterRepos"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -114,6 +117,18 @@
         "title": "Open Installed File",
         "icon": "$(go-to-file)",
         "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.previewFile",
+        "title": "Preview File",
+        "icon": "$(eye)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.filterRepos",
+        "title": "Filter Repositories",
+        "icon": "$(search)",
+        "category": "Agent Manager"
       }
     ],
     "viewsContainers": {
@@ -128,6 +143,13 @@
     "views": {
       "agentManager": [
         {
+          "id": "agentManagerFilter",
+          "name": "",
+          "type": "webview",
+          "visibility": "visible",
+          "icon": "$(search)"
+        },
+        {
           "id": "agentManagerView",
           "name": "Repositories",
           "icon": "resources/activity-icon.svg",
@@ -139,6 +161,11 @@
       "view/title": [
         {
           "command": "agentMgr.addRepository",
+          "when": "view == agentManagerView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentMgr.filterRepos",
           "when": "view == agentManagerView",
           "group": "navigation@1"
         },
@@ -188,6 +215,11 @@
           "command": "agentMgr.installFile",
           "when": "view == agentManagerView && viewItem == file_available",
           "group": "inline"
+        },
+        {
+          "command": "agentMgr.previewFile",
+          "when": "view == agentManagerView && (viewItem == file_available || viewItem == file_outdated)",
+          "group": "inline@1"
         },
         {
           "command": "agentMgr.updateFile",

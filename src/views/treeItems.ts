@@ -59,14 +59,24 @@ export class CategoryItem extends vscode.TreeItem {
 // ── File item ─────────────────────────────────────────────────────────────────
 
 export class FileItem extends vscode.TreeItem {
-  constructor(public readonly file: AgentFile) {
-    super(file.displayName, vscode.TreeItemCollapsibleState.None);
+  /**
+   * @param displayLabel replaces the default `file.displayName` when provided
+   *   (used to show custom names after renames).
+   */
+  constructor(public readonly file: AgentFile, displayLabel?: string) {
+    super(displayLabel ?? file.displayName, vscode.TreeItemCollapsibleState.None);
 
     this.contextValue = `file_${file.status}`;
     this.id = `file:${file.id}`;
     this.description = statusDescription(file.status);
     this.tooltip = buildFileTooltip(file);
-    this.iconPath = fileIcon(file.status);
+
+    // color orange when outdated
+    if (file.status === 'outdated') {
+      this.iconPath = new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.orange'));
+    } else {
+      this.iconPath = fileIcon(file.status);
+    }
 
     // Allow opening the installed file with a single click
     if (
@@ -119,7 +129,7 @@ function buildFileTooltip(file: AgentFile): vscode.MarkdownString {
   return md;
 }
 
-function categoryLabel(category: FileCategory): string {
+export function categoryLabel(category: FileCategory): string {
   switch (category) {
     case 'agent':
       return 'Agents';

@@ -6,6 +6,7 @@ import { FileScanner } from './fileScanner';
 import { InstallationManager } from './installationManager';
 import { SyncManager } from './syncManager';
 import { AgentManagerTreeProvider } from './views/treeProvider';
+import { FilterViewProvider } from './filterView';
 import { RepositoryItem, CategoryItem, FileItem } from './views/treeItems';
 import { AgentFile, SyncResult } from './types';
 import { ensurePromptsDirectory, getPromptsDirectory } from './pathResolver';
@@ -13,6 +14,7 @@ import { ensurePromptsDirectory, getPromptsDirectory } from './pathResolver';
 // ── Extension lifecycle ───────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext): void {
+  console.log('[extension] activate called');
   // Wire up all services
   const gitService = new GitService();
   const repoManager = new RepositoryManager(context, gitService);
@@ -38,6 +40,15 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
   });
+
+  // register a tiny filter sub-view that sits above the repo list
+  const filterProvider = new FilterViewProvider(treeProvider);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      FilterViewProvider.viewType,
+      filterProvider
+    )
+  );
 
   // ── Command registrations ─────────────────────────────────────────────────
 
@@ -72,6 +83,16 @@ export function activate(context: vscode.ExtensionContext): void {
       'agentMgr.installFile',
       (item: FileItem) =>
         cmdInstallFile(item, repoManager, installManager, treeProvider)
+    ),
+
+    vscode.commands.registerCommand(
+      'agentMgr.previewFile',
+      (item: FileItem) => cmdPreviewFile(item, repoManager)
+    ),
+
+    vscode.commands.registerCommand(
+      'agentMgr.filterRepos',
+      () => cmdFilterRepos(treeProvider, filterProvider)
     ),
 
     vscode.commands.registerCommand(
@@ -353,6 +374,24 @@ async function cmdSyncRepository(
   );
 }
 
+/** Show the embedded search bar and focus it. */
+async function cmdFilterRepos(
+  treeProvider: AgentManagerTreeProvider,
+  filterView: FilterViewProvider
+): Promise<void> {
+  // debug notification to verify command execution
+  notify('Filter button clicked');
+  // reveal the whole view container in case the user is elsewhere
+  await vscode.commands.executeCommand('workbench.view.extension.agentManager');
+  // reveal the whole view container in case the user is elsewhere
+  // the filter subview is contributed with visibility:visible, so it will
+  // already be created when the container opens; calling focus() on the
+  // provider will both show the subview (if necessary) and send the
+  // `doFocus` message.  Avoid invoking any generic `openView` command since
+  // that opens the global view picker (the unwanted search bar).
+  filterView.focus();
+}
+
 /** Pull all registered repos. */
 async function cmdSyncAll(syncManager: SyncManager): Promise<void> {
   await vscode.window.withProgress(
@@ -382,13 +421,53 @@ async function cmdInstallFile(
   const { file } = item;
   const localPath = repoManager.getLocalPath(file.repoId);
 
+  // conflict detection: is there already a record with same display label
+  const existing = installManager.findByLabel(file.displayName);
+  let customName: string | undefined;
+  if (existing && existing.fileId !== file.id) {
+    // prompt user to rename before proceeding
+    customName = await vscode.window.showInputBox({
+      title: 'Name conflict',
+      prompt: `A mode named "${file.displayName}" is already installed. Please provide a new name to avoid conflict:`,
+      value: `${file.displayName} (1)`,
+      ignoreFocusOut: true,
+      validateInput(v) {
+        if (!v?.trim()) return 'Name cannot be empty';
+        if (installManager.findByLabel(v.trim())) return 'Another mode already uses that name';
+        return undefined;
+      },
+    });
+    if (!customName) {
+      // user cancelled rename
+      return;
+    }
+  }
+
   try {
-    await installManager.install(file, localPath);
+    await installManager.install(file, localPath, customName, file.repoId);
     treeProvider.refresh();
-    notify(`"${file.displayName}" installed.`);
+    const label = customName ?? file.displayName;
+    notify(`"${label}" installed.`);
   } catch (err: unknown) {
     vscode.window.showErrorMessage(
       `Failed to install "${file.name}": ${toMessage(err)}`
+    );
+  }
+}
+
+/** Preview the raw contents of a repository file in an editor. */
+async function cmdPreviewFile(
+  item: FileItem,
+  repoManager: RepositoryManager
+): Promise<void> {
+  const { file } = item;
+  const localPath = path.join(repoManager.getLocalPath(file.repoId), file.relativePath);
+  try {
+    const doc = await vscode.workspace.openTextDocument(localPath);
+    await vscode.window.showTextDocument(doc, { preview: true });
+  } catch (err: unknown) {
+    vscode.window.showErrorMessage(
+      `Failed to preview "${file.displayName}": ${toMessage(err)}`
     );
   }
 }
@@ -434,7 +513,8 @@ async function cmdUpdateFile(
   try {
     await installManager.update(file, localPath);
     treeProvider.refresh();
-    notify(`"${file.displayName}" updated to latest.`);
+    const label = installManager.getLabelFor(file.id) ?? file.displayName;
+    notify(`"${label}" updated to latest.`);
   } catch (err: unknown) {
     vscode.window.showErrorMessage(
       `Failed to update "${file.name}": ${toMessage(err)}`

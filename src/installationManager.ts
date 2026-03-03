@@ -85,11 +85,18 @@ export class InstallationManager {
    * tracked by this extension, a `(1)`, `(2)`, … suffix is appended to avoid
    * silently overwriting unrelated user files.
    */
-  async install(file: AgentFile, repoLocalPath: string): Promise<void> {
+  async install(
+    file: AgentFile,
+    repoLocalPath: string,
+    customName?: string,
+    sourceRepo?: string
+  ): Promise<void> {
     const sourcePath = path.join(repoLocalPath, file.relativePath);
     const promptsDir = await ensurePromptsDirectory();
 
-    let targetPath = path.join(promptsDir, file.name);
+    // determine filename: use custom name if given, otherwise original
+    const filename = customName ? `${customName}.md` : file.name;
+    let targetPath = path.join(promptsDir, filename);
 
     // If the target exists but is NOT tracked by us, avoid clobbering it
     if (!(await this.isTracked(targetPath))) {
@@ -107,6 +114,12 @@ export class InstallationManager {
       installedHash,
       targetPath,
     };
+    if (customName) {
+      record.customName = customName;
+    }
+    if (sourceRepo) {
+      record.sourceRepo = sourceRepo;
+    }
 
     this.records.set(file.id, record);
     await this.persist();
@@ -132,6 +145,7 @@ export class InstallationManager {
     record.installedAt = new Date().toISOString();
     record.sourceHash = file.remoteHash;
     record.installedHash = installedHash;
+    // preserve customName and sourceRepo automatically
 
     await this.persist();
   }
@@ -160,6 +174,32 @@ export class InstallationManager {
    */
   getInstalledPath(fileId: string): string | undefined {
     return this.records.get(fileId)?.targetPath;
+  }
+
+  /**
+   * Return the display label for an installed record (custom name if any).
+   */
+  getLabelFor(fileId: string): string | undefined {
+    const r = this.records.get(fileId);
+    if (!r) return undefined;
+    if (r.customName) return r.customName;
+    // derive from target path
+    return path.basename(r.targetPath, '.md');
+  }
+
+  /**
+   * Locate a record by its display label (custom or derived).
+   */
+  findByLabel(label: string): InstallRecord | undefined {
+    for (const r of this.records.values()) {
+      const lbl = r.customName
+        ? r.customName
+        : path.basename(r.targetPath, '.md');
+      if (lbl.toLowerCase() === label.toLowerCase()) {
+        return r;
+      }
+    }
+    return undefined;
   }
 
   /**

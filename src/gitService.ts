@@ -137,16 +137,40 @@ export class GitService {
 
     try {
       await this.runGit(['pull', '--ff-only', 'origin', branch], localPath);
-    } catch (err) {
-      // If HEAD moved, the pull fetched new commits even though the working-
-      // tree checkout failed for some files (e.g. invalid Windows paths).
-      const after = await this.runGit(['rev-parse', 'HEAD'], localPath)
-        .then((s) => s.trim())
-        .catch(() => before);
-      if (after !== before) {
-        return true;
+    } catch (err: unknown) {
+      const msg = String(err);
+      // If the remote was force-pushed or the branches have diverged, a
+      // fast-forward pull will fail. In most cases we don't care about
+      // preserving local clone history (it's just a cache), so stomp the
+      // workspace over to the remote state instead of leaving the repo in a
+      // broken state. Otherwise fall back to a regular merge.
+      if (
+        msg.includes('fast-forward') ||
+        msg.includes('Not possible to fast-forward') ||
+        msg.includes('forced update') ||
+        msg.includes('diverging branches')
+      ) {
+        // log for troubleshooting; the host developer console will show this
+        console.warn(
+          'GitService.pull: repository has diverged or been force-pushed,' +
+            ' resetting local clone to remote HEAD.'
+        );
+        try {
+          // fetch the tip and reset hard; this handles both normal divergence
+          // and force-push scenarios without creating tangled merge commits.
+          await this.runGit(['fetch', 'origin', branch], localPath);
+          await this.runGit(['reset', '--hard', 'FETCH_HEAD'], localPath);
+        } catch {
+          // if the reset itself fails, try one last time with a plain pull
+          try {
+            await this.runGit(['pull', 'origin', branch], localPath);
+          } catch {
+            throw err;
+          }
+        }
+      } else {
+        throw err;
       }
-      throw err;
     }
 
     const after = (

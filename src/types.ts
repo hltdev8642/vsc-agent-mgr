@@ -69,6 +69,13 @@ export interface InstallRecord {
   installedHash: string;
   /** Absolute path to the installed file on disk. */
   targetPath: string;
+  /**
+   * Optional user-provided display name/alias.  Used when the user renames a
+   * mode to avoid conflicts with an already-installed one.
+   */
+  customName?: string;
+  /** Identifier of the source repository (repoId or URL) for origin tracking. */
+  sourceRepo?: string;
 }
 
 /** Summary produced after syncing a repository. */
