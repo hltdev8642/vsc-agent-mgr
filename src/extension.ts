@@ -523,6 +523,32 @@ async function cmdUpdateFile(
   const { file } = item;
   const localPath = repoManager.getLocalPath(file.repoId);
 
+  // ask user whether they want to simply overwrite or review/merge changes
+  const choice = await vscode.window.showWarningMessage(
+    `An updated version of "${file.displayName}" is available.`,
+    { modal: true },
+    'Overwrite',
+    'Merge'
+  );
+  if (!choice) {
+    return;
+  }
+
+  if (choice === 'Merge') {
+    // show diff and then prompt for final decision
+    await cmdViewDiff(item, repoManager, installManager);
+    const follow = await vscode.window.showWarningMessage(
+      `After reviewing the diff, how do you want to apply the update to "${file.displayName}"?`,
+      { modal: true },
+      'Overwrite',
+      'Keep Local'
+    );
+    if (!follow || follow === 'Keep Local') {
+      return;
+    }
+    // otherwise proceed with overwrite
+  }
+
   try {
     await installManager.update(file, localPath);
     treeProvider.refresh();
@@ -815,7 +841,14 @@ function showSyncSummary(results: SyncResult[]): void {
 
   const parts: string[] = [];
   if (updated > 0) {
-    parts.push(`${updated} update${updated === 1 ? '' : 's'} available`);
+    const perRepo: string[] = [];
+    for (const r of results) {
+      if (r.filesUpdated > 0) {
+        perRepo.push(`${r.repoName}: ${r.filesUpdated}`);
+      }
+    }
+    const repoText = perRepo.length > 0 ? ` (${perRepo.join(', ')})` : '';
+    parts.push(`${updated} update${updated === 1 ? '' : 's'} available${repoText}`);
   }
   if (newFiles > 0) {
     parts.push(`${newFiles} new file${newFiles === 1 ? '' : 's'}`);

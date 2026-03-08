@@ -72,7 +72,7 @@ export class AgentManagerTreeProvider
 
   async getChildren(element?: AnyItem): Promise<AnyItem[]> {
     if (!element) {
-      // Root level — return all registered repositories, filtered if needed
+      // Root level — return all registered repositories, possibly filtered.
       let repos = this.repoManager.getAll();
       if (this.repoFilter) {
         const filtered: typeof repos = [];
@@ -84,7 +84,13 @@ export class AgentManagerTreeProvider
         repos = filtered;
         console.log('[AgentManagerTreeProvider] filter applied,', repos.length, 'repos match');
       }
-      return repos.map((repo) => new RepositoryItem(repo));
+
+      // compute update counts for each repo
+      const updateCounts = await Promise.all(
+        repos.map((r) => this.getRepoUpdateCount(r.id))
+      );
+
+      return repos.map((repo, idx) => new RepositoryItem(repo, updateCounts[idx] > 0, updateCounts[idx]));
     }
 
     if (element instanceof RepositoryItem) {
@@ -116,6 +122,24 @@ export class AgentManagerTreeProvider
       }
     }
     return i === pattern.length;
+  }
+
+  /**
+   * Determine whether the specified repository currently contains any
+   * installed files marked as `outdated`.  This is used by the root-level
+   * rendering logic to decorate the repo icon.
+   */
+  /**
+   * Count how many installed files in the repo are outdated.  This lets us
+   * display a numeric badge and color on the repository node.
+   */
+  private async getRepoUpdateCount(repoId: string): Promise<number> {
+    const cats = await this.getCategoriesForRepo(repoId);
+    let count = 0;
+    for (const cat of cats) {
+      count += cat.files.filter((f) => f.status === 'outdated').length;
+    }
+    return count;
   }
 
   // match the filter against anything inside a repo (name, url, category labels, or file names)

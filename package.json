@@ -2,7 +2,7 @@
   "name": "vsc-agent-mgr",
   "displayName": "AI Agent Manager",
   "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "vsc-agent-mgr",
   "license": "MIT",
   "engines": {

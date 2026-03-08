@@ -125,6 +125,12 @@ export class SyncManager {
     } catch (err: unknown) {
       const msg = toMessage(err);
       result.errors.push(msg);
+      // special-case 404-like errors to give a clearer message
+      if (msg.includes('Repository not found') || msg.match(/not found/i)) {
+        vscode.window.showErrorMessage(
+          `Sync failed for "${repo.name}": remote repository could not be found. Please verify the URL or your access permissions.`
+        );
+      }
       await this.repoManager.updateSyncStatus(repoId, 'error', msg);
     } finally {
       this.syncing.delete(repoId);

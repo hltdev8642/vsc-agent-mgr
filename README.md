@@ -6,6 +6,7 @@
 - Fixed filter button so it opens the search bar and focuses the input, even before the view is created.
 - Ensured the filter subview always appears when the repositories view is active.
 - **(0.1.4)** Added explicit "Filter" label and visibility to the search bar view and instrumentation for debugging when the toolbar button is pressed; should finally resolve cases where clicking the filter icon seemed to do nothing. Marked the view's contribution type as `webview` (previously treated as a tree without a provider) and added `onView:agentManagerFilter` activation event, eliminating the "no data provider" error. Removed an erroneous call to `workbench.action.openView` that opened the global view picker (a general search bar) – the filter input now lives strictly inside the Agent Manager panel.
+- **(0.1.5)** Sync process now highlights repos with updates, displays per-repo counts in notifications, and allows merge/overwrite flows when updating files. URL normalization prevents trailing-slash errors and sync failures for missing remotes now show user-friendly messages.
 
 ### 0.1.2
 - Added persistent search bar above repository list; typing filters repos in real time.
@@ -31,6 +32,7 @@ A VS Code extension for managing AI agent configurations, chatmodes, and instruc
 - **Add** any public or private Git repository containing `.md` files
 - **Remove** repositories when no longer needed
 - **Browse** repositories in the VS Code Activity Bar sidebar
+- Repositories with installed updates available are highlighted in orange and show an update count in their description; sync operations surface a summary notification as well.
 
 ### File Discovery
 Automatically detects and categorises `.md` files by filename pattern:
@@ -62,6 +64,7 @@ Every file shows a live status badge:
 - **Manual sync** per-repo or for all repos at once
 - **Background auto-sync** at a configurable interval (default: 60 min)
 - **Startup sync** automatically on VS Code launch
+- Sync notifications now include per-repository update counts, and repos with available updates are highlighted with an orange icon and badge.
 
 ### Conflict Resolution
 When both the installed file and the remote file have changed, the extension lets you:

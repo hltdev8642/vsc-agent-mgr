@@ -29,6 +29,8 @@ export interface Repository {
   syncStatus: SyncState;
   /** Error message from the last failed sync. */
   syncError?: string;
+  /** Transient number of installed files that can be updated; recalculated on refresh */
+  updateCount?: number;
 }
 
 /** Metadata for an .md file discovered inside a repository. */

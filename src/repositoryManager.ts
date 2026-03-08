@@ -57,7 +57,9 @@ export class RepositoryManager {
    * Throws if the URL is already registered or the clone fails.
    */
   async add(url: string, branch = 'main', token?: string): Promise<Repository> {
-    const normalised = normaliseUrl(url);
+    // sanitise the URL early: strip trailing slash and .git, lower-case
+    url = normaliseUrl(url);
+    const normalised = url;
     for (const repo of this.repos.values()) {
       if (normaliseUrl(repo.url) === normalised) {
         throw new Error(`Repository is already added: ${url}`);

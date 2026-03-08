@@ -4,12 +4,19 @@ import { Repository, AgentFile, FileCategory, FileStatus } from '../types';
 // ── Repository item ───────────────────────────────────────────────────────────
 
 export class RepositoryItem extends vscode.TreeItem {
-  constructor(public readonly repo: Repository) {
+  constructor(
+    public readonly repo: Repository,
+    public readonly hasUpdates: boolean = false,
+    public readonly updateCount: number = 0
+  ) {
     super(repo.name, vscode.TreeItemCollapsibleState.Expanded);
 
     this.contextValue = 'repository';
     this.id = `repo:${repo.id}`;
     this.description = shortenUrl(repo.url);
+    if (this.updateCount > 0) {
+      this.description += ` (${this.updateCount} update${this.updateCount === 1 ? '' : 's'})`;
+    }
     this.tooltip = buildRepoTooltip(repo);
 
     switch (repo.syncStatus) {
@@ -27,7 +34,13 @@ export class RepositoryItem extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon('git-fetch');
         break;
       default:
-        this.iconPath = new vscode.ThemeIcon('repo');
+        const baseIcon = new vscode.ThemeIcon('repo');
+        if (this.hasUpdates) {
+          // color orange to indicate available updates
+          this.iconPath = new vscode.ThemeIcon('repo', new vscode.ThemeColor('charts.orange'));
+        } else {
+          this.iconPath = baseIcon;
+        }
     }
   }
 }
