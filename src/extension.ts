@@ -383,13 +383,26 @@ async function cmdFilterRepos(
   notify('Filter button clicked');
   // reveal the whole view container in case the user is elsewhere
   await vscode.commands.executeCommand('workbench.view.extension.agentManager');
-  // reveal the whole view container in case the user is elsewhere
-  // the filter subview is contributed with visibility:visible, so it will
-  // already be created when the container opens; calling focus() on the
-  // provider will both show the subview (if necessary) and send the
-  // `doFocus` message.  Avoid invoking any generic `openView` command since
-  // that opens the global view picker (the unwanted search bar).
+  // focus the filter input and shrink the sidebar split a couple of times so
+  // the filter bar occupies minimal height
   filterView.focus();
+  setTimeout(() => {
+    vscode.commands.executeCommand('workbench.action.decreaseViewSize');
+    vscode.commands.executeCommand('workbench.action.decreaseViewSize');
+  }, 50);
+  // if the filter view never becomes visible (hidden via Views menu), fall
+  // back to a plain input box so the user can still type a filter.
+  setTimeout(async () => {
+    if (!filterView.isVisible()) {
+      notify('Filter bar is hidden – falling back to input box');
+      const val = await vscode.window.showInputBox({
+        prompt: 'Filter repositories (bar is hidden in sidebar)',
+      });
+      if (val !== undefined) {
+        treeProvider.setRepoFilter(val);
+      }
+    }
+  }, 200);
 }
 
 /** Pull all registered repos. */

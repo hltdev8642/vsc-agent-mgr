@@ -76,8 +76,8 @@ export class FilterViewProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <style>
-    body { padding: 4px; }
-    input { width: 100%; box-sizing: border-box; }
+    html, body { margin:0; padding:4px; height:auto; }
+    input { width: 100%; box-sizing: border-box; margin-top:0; }
   </style>
 </head>
 <body>
