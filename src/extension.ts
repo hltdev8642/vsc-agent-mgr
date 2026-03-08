@@ -10,6 +10,8 @@ import { FilterViewProvider } from './filterView';
 import { RepositoryItem, CategoryItem, FileItem } from './views/treeItems';
 import { AgentFile, SyncResult } from './types';
 import { ensurePromptsDirectory, getPromptsDirectory } from './pathResolver';
+import { LocalFilesProvider } from './views/localProvider';
+import * as fs from 'fs/promises';
 
 // ── Extension lifecycle ───────────────────────────────────────────────────────
 
@@ -20,6 +22,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const repoManager = new RepositoryManager(context, gitService);
   const fileScanner = new FileScanner();
   const installManager = new InstallationManager(context);
+
+  // we'll refresh the local/orphan view when repos change; subscription
+  // will be created after the provider instance exists further below.
 
   const treeProvider = new AgentManagerTreeProvider(
     repoManager,
@@ -49,6 +54,29 @@ export function activate(context: vscode.ExtensionContext): void {
       filterProvider
     )
   );
+
+  // local/orphan prompts tab
+  const localProvider = new LocalFilesProvider(
+    repoManager,
+    fileScanner,
+    installManager
+  );
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('agentManagerLocal', localProvider)
+  );
+  // keep the local view in sync whenever repositories are added/removed
+  repoManager.onDidChange(() => localProvider.refresh());
+  // watch for changes to the prompts directory so the view stays up to date
+  ensurePromptsDirectory().then(() => {
+    const promptsPath = getPromptsDirectory();
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(promptsPath, '**/*.md')
+    );
+    context.subscriptions.push(watcher);
+    watcher.onDidChange(() => localProvider.refresh());
+    watcher.onDidCreate(() => localProvider.refresh());
+    watcher.onDidDelete(() => localProvider.refresh());
+  });
 
   // ── Command registrations ─────────────────────────────────────────────────
 
@@ -139,6 +167,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('agentMgr.openFile', (file: AgentFile) =>
       cmdOpenFile(file, installManager)
+    ),
+
+    vscode.commands.registerCommand('agentMgr.addLocalFile', () =>
+      cmdAddLocalFile(localProvider)
+    ),
+
+    vscode.commands.registerCommand('agentMgr.createLocalFile', () =>
+      cmdCreateLocalFile(localProvider)
     )
   );
 
@@ -778,6 +814,20 @@ async function cmdOpenFile(
     vscode.window.showInformationMessage('No file selected.');
     return;
   }
+
+  // Local "orphan" entries come from the prompts directory itself; if the
+  // file ID begins with `local:` we simply open the underlying file rather
+  // than going through the installation manager.
+  if (file.id.startsWith('local:')) {
+    const localPath = path.join(getPromptsDirectory(), file.relativePath);
+    try {
+      await vscode.window.showTextDocument(vscode.Uri.file(localPath));
+      return;
+    } catch (err: unknown) {
+      // fall through to error message below
+    }
+  }
+
   const installedPath = installManager.getInstalledPath(file.id);
   if (!installedPath) {
     const label =
@@ -819,6 +869,65 @@ async function pickRepository(
     { title, placeHolder: 'Select a repository', ignoreFocusOut: true }
   );
   return picked ? repoManager.getById(picked.id) : undefined;
+}
+
+// ── Local file helpers ────────────────────────────────────────────────────
+
+/** Allow the user to pick an existing `.md` file and copy it into prompts/. */
+async function cmdAddLocalFile(
+  localProvider: LocalFilesProvider
+): Promise<void> {
+  const promptsDir = await ensurePromptsDirectory();
+  const uris = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: 'Select file to add',
+    filters: { Markdown: ['md'] },
+  });
+  if (!uris || uris.length === 0) {
+    return;
+  }
+  const src = uris[0].fsPath;
+  const dest = path.join(promptsDir, path.basename(src));
+  try {
+    await fs.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
+  } catch (err: any) {
+    if (err.code === 'EEXIST') {
+      vscode.window.showErrorMessage(
+        'A file with that name already exists in the prompts directory.'
+      );
+      return;
+    }
+    vscode.window.showErrorMessage(
+      `Could not add file to prompts folder: ${err.message || err}`
+    );
+    return;
+  }
+  localProvider.refresh();
+  vscode.window.showInformationMessage(`Added ${path.basename(dest)} to prompts.`);
+}
+
+/** Create a new empty `.md` file inside the prompts directory and open it. */
+async function cmdCreateLocalFile(
+  localProvider: LocalFilesProvider
+): Promise<void> {
+  const promptsDir = await ensurePromptsDirectory();
+  const uri = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.file(path.join(promptsDir, 'untitled.md')),
+    saveLabel: 'Create',
+    filters: { Markdown: ['md'] },
+  });
+  if (!uri) {
+    return;
+  }
+  try {
+    await fs.writeFile(uri.fsPath, '');
+    await vscode.window.showTextDocument(uri);
+  } catch (err: any) {
+    vscode.window.showErrorMessage(
+      `Could not create file: ${err.message || err}`
+    );
+  }
+  localProvider.refresh();
 }
 
 /** Show a summary notification after one or more syncs. */

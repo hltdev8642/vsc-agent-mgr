@@ -2,11 +2,23 @@
 
 ## Changelog
 
+### 0.1.7
+- Fixed a bug where the Local Files tab could list files that had already been installed from a repository; installed names (including renamed/customised ones) are now always excluded.
+
+### 0.1.6
+- Added a **Local Files** tab for manual prompt management.  Orphaned Markdown files found in your prompts directory (not supplied by any registered repository) are listed with category grouping and alphabetical sorting.
+  - Browse to import an existing file or create a new one directly from the panel.
+  - View stays in sync with filesystem changes via a watcher.
+
+### 0.1.5
+- Sync process now highlights repos with updates, displays per-repo counts in notifications, and allows merge/overwrite flows when updating files. URL normalization prevents trailing-slash errors and sync failures for missing remotes now show user-friendly messages.
+
+### 0.1.4
+- Added explicit "Filter" label and visibility to the search bar view and instrumentation for debugging when the toolbar button is pressed; should finally resolve cases where clicking the filter icon seemed to do nothing. Marked the view's contribution type as `webview` (previously treated as a tree without a provider) and added `onView:agentManagerFilter` activation event, eliminating the "no data provider" error. Removed an erroneous call to `workbench.action.openView` that opened the global view picker (a general search bar) – the filter input now lives strictly inside the Agent Manager panel.
+
 ### 0.1.3
 - Fixed filter button so it opens the search bar and focuses the input, even before the view is created.
 - Ensured the filter subview always appears when the repositories view is active.
-- **(0.1.4)** Added explicit "Filter" label and visibility to the search bar view and instrumentation for debugging when the toolbar button is pressed; should finally resolve cases where clicking the filter icon seemed to do nothing. Marked the view's contribution type as `webview` (previously treated as a tree without a provider) and added `onView:agentManagerFilter` activation event, eliminating the "no data provider" error. Removed an erroneous call to `workbench.action.openView` that opened the global view picker (a general search bar) – the filter input now lives strictly inside the Agent Manager panel.
-- **(0.1.5)** Sync process now highlights repos with updates, displays per-repo counts in notifications, and allows merge/overwrite flows when updating files. URL normalization prevents trailing-slash errors and sync failures for missing remotes now show user-friendly messages.
 
 ### 0.1.2
 - Added persistent search bar above repository list; typing filters repos in real time.
@@ -49,6 +61,11 @@ Automatically detects and categorises `.md` files by filename pattern:
   - **Windows:** `%APPDATA%\Code - Insiders\User\prompts`
   - **macOS:** `~/Library/Application Support/Code - Insiders/User/prompts`
   - **Linux:** `~/.config/Code - Insiders/User/prompts`
+
+### Local Files
+- A dedicated **Local Files** tab lists any Markdown files sitting in the prompts folder that aren’t delivered by a registered repository.
+- The view is categorised the same way as repository content and sorts filenames alphabetically.
+- Two toolbar buttons let you import an existing file or create a brand‑new one; changes on disk are watched and the view refreshes automatically.
 
 ### Status Indicators
 Every file shows a live status badge:
@@ -133,6 +150,8 @@ All major operations are accessible via **Ctrl+Shift+P** (Cmd+Shift+P on macOS):
 | `Agent Manager: Refresh View` | Reload the sidebar tree |
 | `Agent Manager: Filter Repositories` | Focus the search bar at the top of the panel |
 | `Agent Manager: Open Prompts Folder` | Reveal the prompts directory in Explorer |
+| `Agent Manager: Add Local File` | Copy an existing Markdown file into the prompts folder |
+| `Agent Manager: Create Local File` | Create a new blank Markdown file in the prompts folder |
 
 ---
 

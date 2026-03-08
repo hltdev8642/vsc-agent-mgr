@@ -2,7 +2,7 @@
   "name": "vsc-agent-mgr",
   "displayName": "AI Agent Manager",
   "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "publisher": "vsc-agent-mgr",
   "license": "MIT",
   "engines": {
@@ -23,6 +23,7 @@
     "onStartupFinished",
     "onView:agentManagerView",
     "onView:agentManagerFilter",
+    "onView:agentManagerLocal",
     "onCommand:agentMgr.filterRepos"
   ],
   "main": "./out/extension.js",
@@ -113,6 +114,18 @@
         "category": "Agent Manager"
       },
       {
+        "command": "agentMgr.addLocalFile",
+        "title": "Add Existing Local File",
+        "icon": "$(file-add)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.createLocalFile",
+        "title": "Create New Local File",
+        "icon": "$(new-file)",
+        "category": "Agent Manager"
+      },
+      {
         "command": "agentMgr.openFile",
         "title": "Open Installed File",
         "icon": "$(go-to-file)",
@@ -154,6 +167,12 @@
           "name": "Repositories",
           "icon": "resources/activity-icon.svg",
           "contextualTitle": "AI Agent Manager"
+        },
+        {
+          "id": "agentManagerLocal",
+          "name": "Local Files",
+          "icon": "$(file)",
+          "contextualTitle": "AI Agent Manager"
         }
       ]
     },
@@ -183,6 +202,21 @@
           "command": "agentMgr.openPromptsFolder",
           "when": "view == agentManagerView",
           "group": "navigation@4"
+        },
+        {
+          "command": "agentMgr.addLocalFile",
+          "when": "view == agentManagerLocal",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentMgr.createLocalFile",
+          "when": "view == agentManagerLocal",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentMgr.refresh",
+          "when": "view == agentManagerLocal",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
