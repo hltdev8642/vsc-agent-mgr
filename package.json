@@ -2,7 +2,7 @@
   "name": "vsc-agent-mgr",
   "displayName": "AI Agent Manager",
   "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "publisher": "vsc-agent-mgr",
   "license": "MIT",
   "engines": {
@@ -279,6 +279,16 @@
           "command": "agentMgr.openFile",
           "when": "view == agentManagerView && (viewItem == file_installed || viewItem == file_outdated || viewItem == file_conflicted)",
           "group": "3_open"
+        },
+        {
+          "command": "agentMgr.openFile",
+          "when": "view == agentManagerLocal && viewItem == file_available",
+          "group": "3_open"
+        },
+        {
+          "command": "agentMgr.uninstallLocalFile",
+          "when": "view == agentManagerLocal && viewItem == file_available",
+          "group": "2_file"
         }
       ],
       "commandPalette": [

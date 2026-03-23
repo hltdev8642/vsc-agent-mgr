@@ -2,6 +2,13 @@
 
 ## Changelog
 
+### 0.1.9
+- Added defensive checks to `Open Installed File` handler; clicking a malformed item no longer triggers a crash, and a helpful message is shown instead.
+
+### 0.1.8
+- Local Files entries now support **Open Installed File** and **Uninstall File** via right-click, matching repository items.
+- "Open Installed File" works correctly for orphan items; files are opened directly from the prompts folder even if no install record exists.
+
 ### 0.1.7
 - Fixed a bug where the Local Files tab could list files that had already been installed from a repository; installed names (including renamed/customised ones) are now always excluded.
 

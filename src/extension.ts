@@ -169,6 +169,10 @@ export function activate(context: vscode.ExtensionContext): void {
       cmdOpenFile(file, installManager)
     ),
 
+    vscode.commands.registerCommand('agentMgr.uninstallLocalFile', (file: AgentFile) =>
+      cmdUninstallLocalFile(file, localProvider)
+    ),
+
     vscode.commands.registerCommand('agentMgr.addLocalFile', () =>
       cmdAddLocalFile(localProvider)
     ),
@@ -549,6 +553,36 @@ async function cmdUninstallFile(
   }
 }
 
+/** Delete a local orphan file from the prompts directory. */
+async function cmdUninstallLocalFile(
+  fileItem: AgentFile | undefined,
+  localProvider: LocalFilesProvider
+): Promise<void> {
+  if (!fileItem) {
+    vscode.window.showInformationMessage('No file selected.');
+    return;
+  }
+  const promptsDir = getPromptsDirectory();
+  const target = path.join(promptsDir, fileItem.relativePath);
+  const response = await vscode.window.showWarningMessage(
+    `Delete "${fileItem.displayName}" from prompts folder?`,
+    { modal: true },
+    'Delete'
+  );
+  if (response !== 'Delete') {
+    return;
+  }
+  try {
+    await fs.unlink(target);
+    localProvider.refresh();
+    vscode.window.showInformationMessage(`Deleted ${fileItem.relativePath}.`);
+  } catch (err: any) {
+    vscode.window.showErrorMessage(
+      `Could not delete file: ${err.message || err}`
+    );
+  }
+}
+
 /** Overwrite the installed file with the latest remote version. */
 async function cmdUpdateFile(
   item: FileItem,
@@ -815,18 +849,27 @@ async function cmdOpenFile(
     return;
   }
 
-  // Local "orphan" entries come from the prompts directory itself; if the
-  // file ID begins with `local:` we simply open the underlying file rather
-  // than going through the installation manager.
-  if (file.id.startsWith('local:')) {
-    const localPath = path.join(getPromptsDirectory(), file.relativePath);
-    try {
-      await vscode.window.showTextDocument(vscode.Uri.file(localPath));
-      return;
-    } catch (err: unknown) {
-      // fall through to error message below
-    }
+  if (!file.relativePath) {
+    vscode.window.showErrorMessage(
+      'File has no relative path; cannot open.'
+    );
+    return;
   }
+
+  // Compute the on‑disk path that would correspond to this file in the
+  // prompts directory.  We’ll attempt to open it directly if it exists.
+  const candidatePath = path.join(getPromptsDirectory(), file.relativePath);
+  try {
+    await vscode.workspace.fs.stat(vscode.Uri.file(candidatePath));
+    // file exists on disk – open it and return.
+    await vscode.window.showTextDocument(vscode.Uri.file(candidatePath));
+    return;
+  } catch {
+    // continue with normal logic if not found
+  }
+
+  // Local "orphan" entries normally start with `local:` but in case some
+  // other identifier slipped through we already resolved candidatePath above.
 
   const installedPath = installManager.getInstalledPath(file.id);
   if (!installedPath) {
