@@ -2,7 +2,7 @@
   "name": "vsc-agent-mgr",
   "displayName": "AI Agent Manager",
   "description": "Manage AI agent configurations, chatmodes, and instruction files from Git repositories",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "publisher": "vsc-agent-mgr",
   "license": "MIT",
   "engines": {
@@ -132,6 +132,18 @@
         "category": "Agent Manager"
       },
       {
+        "command": "agentMgr.batchUpdateRepository",
+        "title": "Batch Update Repository",
+        "icon": "$(sync)",
+        "category": "Agent Manager"
+      },
+      {
+        "command": "agentMgr.installAllRepository",
+        "title": "Install All in Repository",
+        "icon": "$(cloud-download)",
+        "category": "Agent Manager"
+      },
+      {
         "command": "agentMgr.previewFile",
         "title": "Preview File",
         "icon": "$(eye)",
@@ -233,12 +245,22 @@
         {
           "command": "agentMgr.openInBrowser",
           "when": "view == agentManagerView && viewItem == repository",
-          "group": "1_repo@1"
+          "group": "inline@1"
+        },
+        {
+          "command": "agentMgr.batchUpdateRepository",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "inline@3"
+        },
+        {
+          "command": "agentMgr.installAllRepository",
+          "when": "view == agentManagerView && viewItem == repository",
+          "group": "inline@4"
         },
         {
           "command": "agentMgr.setAuthToken",
           "when": "view == agentManagerView && viewItem == repository",
-          "group": "1_repo@2"
+          "group": "inline@2"
         },
         {
           "command": "agentMgr.installAll",

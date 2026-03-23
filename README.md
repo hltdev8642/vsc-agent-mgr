@@ -2,6 +2,9 @@
 
 ## Changelog
 
+### 0.1.10
+- Bumped package version for final release build.
+
 ### 0.1.9
 - Added defensive checks to `Open Installed File` handler; clicking a malformed item no longer triggers a crash, and a helpful message is shown instead.
 

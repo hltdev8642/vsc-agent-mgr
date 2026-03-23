@@ -157,6 +157,30 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
 
     vscode.commands.registerCommand(
+      'agentMgr.batchUpdateRepository',
+      (item?: RepositoryItem) =>
+        cmdBatchUpdateRepository(
+          item,
+          repoManager,
+          fileScanner,
+          installManager,
+          treeProvider
+        )
+    ),
+
+    vscode.commands.registerCommand(
+      'agentMgr.installAllRepository',
+      (item?: RepositoryItem) =>
+        cmdInstallAllRepository(
+          item,
+          repoManager,
+          fileScanner,
+          installManager,
+          treeProvider
+        )
+    ),
+
+    vscode.commands.registerCommand(
       'agentMgr.setAuthToken',
       (item?: RepositoryItem) => cmdSetAuthToken(item, repoManager)
     ),
@@ -783,6 +807,169 @@ async function cmdInstallAll(
     );
   } else {
     notify(`Installed ${installed} file(s).`);
+  }
+}
+
+async function cmdInstallAllRepository(
+  item: RepositoryItem | undefined,
+  repoManager: RepositoryManager,
+  fileScanner: FileScanner,
+  installManager: InstallationManager,
+  treeProvider: AgentManagerTreeProvider
+): Promise<void> {
+  const repo = item?.repo;
+  if (!repo) {
+    vscode.window.showInformationMessage('No repository selected.');
+    return;
+  }
+
+  const localPath = repoManager.getLocalPath(repo.id);
+  let files: AgentFile[];
+  try {
+    files = await fileScanner.scanRepository(repo.id, localPath);
+  } catch (err: unknown) {
+    vscode.window.showErrorMessage(
+      `Failed to scan repository files: ${toMessage(err)}`
+    );
+    return;
+  }
+
+  const available = [] as AgentFile[];
+  for (const file of files) {
+    const status = await installManager.computeStatus(file);
+    if (status === 'available') {
+      available.push(file);
+    }
+  }
+
+  if (available.length === 0) {
+    vscode.window.showInformationMessage(
+      'All files in this repository are already installed.'
+    );
+    return;
+  }
+
+  let installed = 0;
+  const errors: string[] = [];
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Installing ${available.length} file(s) from ${repo.name}...`,
+      cancellable: false,
+    },
+    async (progress) => {
+      for (const file of available) {
+        progress.report({ message: file.name });
+        try {
+          await installManager.install(file, localPath);
+          installed++;
+        } catch (err: unknown) {
+          errors.push(`${file.name}: ${toMessage(err)}`);
+        }
+      }
+    }
+  );
+
+  treeProvider.refresh();
+
+  if (errors.length > 0) {
+    vscode.window.showWarningMessage(
+      `Installed ${installed} file(s). ${errors.length} failed:\n${errors.join('\n')}`
+    );
+  } else {
+    notify(`Installed ${installed} file(s).`);
+  }
+}
+
+async function cmdBatchUpdateRepository(
+  item: RepositoryItem | undefined,
+  repoManager: RepositoryManager,
+  fileScanner: FileScanner,
+  installManager: InstallationManager,
+  treeProvider: AgentManagerTreeProvider
+): Promise<void> {
+  const repo = item?.repo;
+  if (!repo) {
+    vscode.window.showInformationMessage('No repository selected.');
+    return;
+  }
+
+  const strategy = await vscode.window.showQuickPick(
+    [
+      { label: 'Overwrite', description: 'Apply remote versions to all outdated/conflicted files' },
+      { label: 'Merge', description: 'Interactively resolve conflicts and update outdated files' },
+    ],
+    { title: `Batch Update ${repo.name}`, ignoreFocusOut: true }
+  );
+  if (!strategy) {
+    return;
+  }
+
+  const localPath = repoManager.getLocalPath(repo.id);
+  let files: AgentFile[];
+  try {
+    files = await fileScanner.scanRepository(repo.id, localPath);
+  } catch (err: unknown) {
+    vscode.window.showErrorMessage(`Failed to scan repository files: ${toMessage(err)}`);
+    return;
+  }
+
+  const actionable: AgentFile[] = [];
+  for (const file of files) {
+    const status = await installManager.computeStatus(file);
+    if (status === 'outdated' || status === 'conflicted') {
+      actionable.push(file);
+    }
+  }
+
+  if (actionable.length === 0) {
+    vscode.window.showInformationMessage('No outdated or conflicted files to update.');
+    return;
+  }
+
+  let updated = 0;
+  const errors: string[] = [];
+
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Batch updating ${repo.name} (${strategy.label})...`,
+      cancellable: false,
+    },
+    async (progress) => {
+      for (const file of actionable) {
+        progress.report({ message: file.name });
+        try {
+          if (strategy.label === 'Overwrite') {
+            await installManager.update(file, localPath);
+            updated++;
+          } else {
+            // Merge strategy: outdated -> update, conflicted -> resolve with prompt
+            const status = await installManager.computeStatus(file);
+            if (status === 'outdated') {
+              await installManager.update(file, localPath);
+              updated++;
+            } else {
+              const placeholder = new FileItem(file, installManager.getLabelFor(file.id));
+              await cmdResolveConflict(placeholder, repoManager, installManager, treeProvider);
+              updated++; // assumption: if user resolves may have updated
+            }
+          }
+        } catch (err: unknown) {
+          errors.push(`${file.name}: ${toMessage(err)}`);
+        }
+      }
+    }
+  );
+
+  treeProvider.refresh();
+
+  if (errors.length > 0) {
+    vscode.window.showWarningMessage(
+      `Updated ${updated} file(s). ${errors.length} errors:\n${errors.join('\n')}`
+    );
+  } else {
+    notify(`Updated ${updated} file(s).`);
   }
 }
 
